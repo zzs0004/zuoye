@@ -489,7 +489,9 @@ def debug_routes():
 # ────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     init_db()
+    import os
+    port = int(os.environ.get('PORT', 5000))
     print("✅ 实验室设备借用管理系统已启动 → http://localhost:5000")
     print("   管理员账号: admin / admin123")
     print("   [v2.0] 逾期通知自动生成 + 管理员手动提醒已启用")
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=port)
