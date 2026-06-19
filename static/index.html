@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>高校实验室设备借用管理系统</title>
+<style>
+/* ====== Reset & Base ====== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#2563eb;--primary-dark:#1d4ed8;--success:#16a34a;--danger:#dc2626;
+  --warning:#f59e0b;--bg:#f1f5f9;--card-bg:#fff;--text:#1e293b;--text2:#64748b;
+  --border:#e2e8f0;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.1);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh}
+a{color:var(--primary);text-decoration:none}
+button{cursor:pointer;border:none;border-radius:var(--radius);font-size:14px;padding:8px 16px;transition:.2s}
+button:disabled{opacity:.5;cursor:not-allowed}
+input,select,textarea{border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;
+  font-size:14px;width:100%;outline:none;transition:border-color .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);font-size:14px}
+th{background:#f8fafc;font-weight:600;color:var(--text2)}
+tr:hover td{background:#f8fafc}
+
+/* ====== Login ====== */
+.login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-card{background:var(--card-bg);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.1);
+  padding:40px;width:100%;max-width:420px}
+.login-card h1{font-size:22px;text-align:center;margin-bottom:4px}
+.login-card .subtitle{text-align:center;color:var(--text2);margin-bottom:28px;font-size:13px}
+.login-card .form-group{margin-bottom:16px}
+.login-card label{display:block;margin-bottom:4px;font-size:13px;font-weight:500;color:var(--text2)}
+.login-card .role-toggle{display:flex;gap:8px;margin-bottom:20px}
+.login-card .role-toggle button{flex:1;padding:10px;background:var(--bg);color:var(--text2);border:2px solid transparent}
+.login-card .role-toggle button.active{border-color:var(--primary);color:var(--primary);background:#eff6ff;font-weight:600}
+.login-card .btn-primary{width:100%;padding:12px;background:var(--primary);color:#fff;font-size:15px;font-weight:600}
+.login-card .btn-primary:hover{background:var(--primary-dark)}
+.login-card .toggle-link{text-align:center;margin-top:16px;font-size:13px;color:var(--text2)}
+.login-card .toggle-link a{font-weight:500;cursor:pointer}
+
+/* ====== Layout ====== */
+.app{display:none}
+.app.active{display:flex;flex-direction:column;min-height:100vh}
+.header{background:var(--primary);color:#fff;padding:0 24px;height:56px;display:flex;
+  align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.header h2{font-size:16px;font-weight:600}
+.header .h-right{display:flex;align-items:center;gap:12px;font-size:13px}
+.header .h-right button{background:rgba(255,255,255,.2);color:#fff;font-size:13px;padding:6px 14px}
+.header .h-right button:hover{background:rgba(255,255,255,.3)}
+.nav{background:var(--card-bg);border-bottom:1px solid var(--border);display:flex;gap:0;padding:0 24px;
+  overflow-x:auto;position:sticky;top:56px;z-index:99}
+.nav button{padding:12px 20px;background:none;border-radius:0;font-size:14px;font-weight:500;
+  color:var(--text2);border-bottom:2px solid transparent;white-space:nowrap}
+.nav button:hover{color:var(--text);background:#f8fafc}
+.nav button.active{color:var(--primary);border-bottom-color:var(--primary)}
+.main{flex:1;padding:24px;max-width:1200px;width:100%;margin:0 auto}
+.page{display:none}
+.page.active{display:block}
+
+/* ====== Cards & Stats ====== */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+.stat-card{background:var(--card-bg);padding:20px;border-radius:var(--radius);box-shadow:var(--shadow)}
+.stat-card .num{font-size:28px;font-weight:700;color:var(--primary)}
+.stat-card .label{font-size:13px;color:var(--text2);margin-top:4px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.equip-card{background:var(--card-bg);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);
+  overflow:hidden;transition:transform .2s,box-shadow .2s}
+.equip-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.equip-card.unavailable{opacity:.75}
+.equip-card .card-header{padding:16px 20px 0;display:flex;align-items:flex-start;gap:14px}
+.equip-card .card-icon{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;
+  justify-content:center;font-size:26px;flex-shrink:0}
+.equip-card .card-icon.osc{background:linear-gradient(135deg,#dbeafe,#bfdbfe)}  /* 示波器 */
+.equip-card .card-icon.meter{background:linear-gradient(135deg,#fef3c7,#fde68a)}  /* 万用表 */
+.equip-card .card-icon.gen{background:linear-gradient(135deg,#d1fae5,#a7f3d0)}  /* 信号源 */
+.equip-card .card-icon.power{background:linear-gradient(135deg,#fee2e2,#fecaca)}  /* 电源 */
+.equip-card .card-icon.analyzer{background:linear-gradient(135deg,#e0e7ff,#c7d2fe)}  /* 分析仪 */
+.equip-card .card-icon.load{background:linear-gradient(135deg,#fce7f3,#fbcfe8)}  /* 负载 */
+.equip-card .card-icon.thermal{background:linear-gradient(135deg,#fff7ed,#fed7aa)}  /* 热成像 */
+.equip-card .card-icon.default{background:linear-gradient(135deg,#f1f5f9,#e2e8f0)}
+.equip-card .card-info{flex:1;min-width:0}
+.equip-card .card-info h4{font-size:15px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.equip-card .card-info .model{font-size:12px;color:var(--text2);margin-bottom:6px}
+.equip-card .card-body{padding:0 20px 14px}
+.equip-card .card-meta{display:flex;gap:14px;font-size:12px;color:var(--text2);margin-bottom:10px;flex-wrap:wrap}
+.equip-card .card-meta span{display:flex;align-items:center;gap:4px}
+.equip-card .qty-bar{height:6px;background:#e2e8f0;border-radius:3px;margin:8px 0;overflow:hidden}
+.equip-card .qty-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.equip-card .qty-bar-fill.green{background:linear-gradient(90deg,#22c55e,#16a34a)}
+.equip-card .qty-bar-fill.red{background:linear-gradient(90deg,#ef4444,#dc2626)}
+.equip-card .qty-text{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.equip-card .qty-text .avail{color:var(--success);font-weight:600}
+.equip-card .qty-text .total{color:var(--text2)}
+.equip-card .card-footer{padding:12px 20px;background:#f8fafc;display:flex;justify-content:space-between;
+  align-items:center;border-top:1px solid var(--border)}
+.equip-card .card-footer .actions{display:flex;gap:8px}
+
+/* ====== Buttons ====== */
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-warning{background:var(--warning);color:#fff}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{background:#f1f5f9}
+
+/* ====== Badges & Status ====== */
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:500}
+.badge-available{background:#dcfce7;color:var(--success)}
+.badge-unavailable{background:#fee2e2;color:var(--danger)}
+.badge-borrowed{background:#dbeafe;color:var(--primary)}
+.badge-returned{background:#f0fdf4;color:var(--success)}
+.badge-overdue{background:#fef2f2;color:var(--danger)}
+.badge-unread{background:#fef3c7;color:#92400e;font-size:11px;padding:1px 6px;margin-left:4px}
+
+/* ====== Modal ====== */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);
+  z-index:200;align-items:center;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal{background:var(--card-bg);border-radius:12px;padding:28px;width:90%;max-width:480px;
+  max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal h3{margin-bottom:20px;font-size:18px}
+.modal .form-group{margin-bottom:14px}
+.modal .form-group label{display:block;margin-bottom:4px;font-size:13px;font-weight:500;color:var(--text2)}
+.modal .form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+/* ====== Utility ====== */
+.toolbar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.toolbar input,.toolbar select{width:auto;min-width:180px}
+.empty{text-align:center;padding:60px 20px;color:var(--text2)}
+.empty .icon{font-size:48px;margin-bottom:12px}
+.toast{position:fixed;top:20px;right:20px;z-index:300;padding:12px 20px;border-radius:var(--radius);
+  color:#fff;font-size:14px;animation:slideIn .3s;max-width:360px}
+.toast-success{background:var(--success)}
+.toast-error{background:var(--danger)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ====== Responsive ====== */
+@media(max-width:640px){
+  .login-card{padding:24px}
+  .header h2{font-size:14px}
+  .main{padding:16px}
+  .card-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     登录/注册页面
+     ══════════════════════════════════════════════════════════ -->
+<div id="loginPage" class="login-page">
+  <div class="login-card">
+    <h1>🔬 实验室设备借用管理系统</h1>
+    <p class="subtitle">西南财经大学天府学院 · 智能科技学院</p>
+    <div id="loginForm">
+      <div class="form-group"><label>用户名</label><input id="loginUser" placeholder="请输入用户名"></div>
+      <div class="form-group"><label>密码</label><input id="loginPass" type="password" placeholder="请输入密码"></div>
+      <button class="btn-primary" onclick="doLogin()">登 录</button>
+      <p class="toggle-link">还没有账号？<a onclick="showRegister()">立即注册</a></p>
+    </div>
+    <div id="registerForm" style="display:none">
+      <div class="form-group"><label>用户名</label><input id="regUser" placeholder="请输入用户名"></div>
+      <div class="form-group"><label>密码</label><input id="regPass" type="password" placeholder="请输入密码"></div>
+      <div class="form-group"><label>手机号（选填）</label><input id="regPhone" placeholder="请输入手机号"></div>
+      <label style="font-size:13px;font-weight:500;color:var(--text2);margin-bottom:4px;display:block">角色</label>
+      <div class="role-toggle">
+        <button class="active" onclick="setRegRole('student',this)">👨‍🎓 学生</button>
+        <button onclick="setRegRole('admin',this)">👨‍💼 管理员</button>
+      </div>
+      <button class="btn-primary" onclick="doRegister()">注 册</button>
+      <p class="toggle-link">已有账号？<a onclick="showLogin()">返回登录</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     主应用
+     ══════════════════════════════════════════════════════════ -->
+<div id="app" class="app">
+  <div class="header">
+    <h2>🔬 实验室设备借用管理系统</h2>
+    <div class="h-right">
+      <span id="headerUser"></span>
+      <button onclick="logout()">退出</button>
+    </div>
+  </div>
+  <div class="nav" id="nav"></div>
+  <div class="main">
+    <!-- 公共：设备浏览 -->
+    <div id="page-equipment" class="page">
+      <div class="toolbar">
+        <input id="eqSearch" placeholder="🔍 搜索设备名称或型号..." oninput="loadEquipment()">
+        <select id="eqStatusFilter" onchange="loadEquipment()">
+          <option value="">全部状态</option><option value="available">可借用</option><option value="unavailable">不可借</option>
+        </select>
+      </div>
+      <div class="card-grid" id="equipmentGrid"></div>
+      <div class="empty" id="equipmentEmpty" style="display:none"><div class="icon">📦</div><p>暂无可借设备</p></div>
+    </div>
+
+    <!-- 学生：我的借用记录 -->
+    <div id="page-myrecords" class="page">
+      <div class="toolbar">
+        <select id="myRecStatus" onchange="loadMyRecords()">
+          <option value="">全部状态</option><option value="borrowed">已借出</option>
+          <option value="returned">已归还</option><option value="overdue">逾期</option>
+        </select>
+      </div>
+      <table><thead><tr><th>设备名称</th><th>借用时间</th><th>预计归还</th><th>实际归还</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody id="myRecordsTable"></tbody></table>
+      <div class="empty" id="myRecordsEmpty" style="display:none"><div class="icon">📋</div><p>暂无借用记录</p></div>
+    </div>
+
+    <!-- 通知 -->
+    <div id="page-notifications" class="page">
+      <table><thead><tr><th>内容</th><th>时间</th><th>状态</th></tr></thead>
+        <tbody id="notifTable"></tbody></table>
+      <div class="empty" id="notifEmpty" style="display:none"><div class="icon">🔔</div><p>暂无通知</p></div>
+    </div>
+
+    <!-- 管理员：设备管理 -->
+    <div id="page-admin-equipment" class="page">
+      <div class="toolbar">
+        <button class="btn-primary" onclick="openEquipModal()">＋ 添加设备</button>
+        <input id="adminEqSearch" placeholder="🔍 搜索..." oninput="loadAdminEquipment()">
+      </div>
+      <table><thead><tr><th>ID</th><th>名称</th><th>型号</th><th>总量</th><th>可用</th><th>位置</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody id="adminEquipTable"></tbody></table>
+      <div class="empty" id="adminEquipEmpty" style="display:none"><div class="icon">📦</div><p>暂无设备，请添加</p></div>
+    </div>
+
+    <!-- 管理员：全部借用记录 -->
+    <div id="page-admin-records" class="page">
+      <div class="toolbar">
+        <select id="adminRecStatus" onchange="loadAdminRecords()">
+          <option value="">全部状态</option><option value="borrowed">已借出</option>
+          <option value="returned">已归还</option><option value="overdue">逾期</option>
+        </select>
+      </div>
+      <table><thead><tr><th>借用人</th><th>设备</th><th>借用时间</th><th>预计归还</th><th>实际归还</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody id="adminRecTable"></tbody></table>
+      <div class="empty" id="adminRecEmpty" style="display:none"><div class="icon">📋</div><p>暂无记录</p></div>
+    </div>
+
+    <!-- 管理员：统计 -->
+    <div id="page-admin-stats" class="page">
+      <div class="toolbar">
+        <button class="btn-outline" onclick="exportCSV()">📥 导出CSV报表</button>
+      </div>
+      <h3 style="margin-bottom:16px">📊 设备使用统计</h3>
+      <table><thead><tr><th>设备名称</th><th>型号</th><th>总量</th><th>可用</th><th>借用次数</th><th>利用率</th></tr></thead>
+        <tbody id="statsEquipTable"></tbody></table>
+      <h3 style="margin:24px 0 16px">👥 学生借用统计</h3>
+      <table><thead><tr><th>用户名</th><th>总借用次数</th><th>逾期次数</th><th>逾期率</th></tr></thead>
+        <tbody id="statsUserTable"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     模态框：借用 / 归还 / 设备编辑
+     ══════════════════════════════════════════════════════════ -->
+<div id="modal" class="modal-overlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+<div id="toastContainer"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     JavaScript
+     ══════════════════════════════════════════════════════════ -->
+<script>
+// ====== State ======
+let token = '', currentUser = null, regRole = 'student';
+const API = '/api';
+
+// ====== Toast ======
+function toast(msg, type='success'){
+  const t = document.createElement('div');
+  t.className = 'toast toast-'+type; t.textContent = msg;
+  document.getElementById('toastContainer').appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
+
+// ====== Auth ======
+async function api(url, opts={}){
+  const headers = {...opts.headers};
+  if(token) headers['Authorization'] = 'Bearer '+token;
+  if(opts.body && typeof opts.body === 'object'){
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  let res;
+  try {
+    res = await fetch(API+url, {...opts, headers});
+  } catch(e) {
+    throw new Error('网络连接失败，请确认服务器是否启动');
+  }
+  if(!res.ok){
+    try { const data = await res.json(); throw new Error(data.error||'请求失败'); }
+    catch(e){ if(e.message!=='请求失败') throw e; throw new Error(`服务器错误 (${res.status})`); }
+  }
+  return await res.json();
+}
+
+async function doLogin(){
+  try{
+    const data = await api('/login',{method:'POST',body:{
+      username: document.getElementById('loginUser').value,
+      password: document.getElementById('loginPass').value
+    }});
+    token = data.token; currentUser = data.user;
+    showApp();
+  }catch(e){toast(e.message,'error')}
+}
+
+async function doRegister(){
+  try{
+    await api('/register',{method:'POST',body:{
+      username: document.getElementById('regUser').value,
+      password: document.getElementById('regPass').value,
+      phone: document.getElementById('regPhone').value,
+      role: regRole
+    }});
+    toast('注册成功，请登录');
+    showLogin();
+  }catch(e){toast(e.message,'error')}
+}
+
+function showRegister(){
+  document.getElementById('loginForm').style.display='none';
+  document.getElementById('registerForm').style.display='block';
+}
+function showLogin(){
+  document.getElementById('loginForm').style.display='block';
+  document.getElementById('registerForm').style.display='none';
+}
+function setRegRole(role, btn){
+  regRole = role;
+  btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function logout(){
+  token='';currentUser=null;
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('loginPage').style.display='flex';
+}
+
+// ====== App Navigation ======
+function showApp(){
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('headerUser').textContent =
+    `👤 ${currentUser.username} (${currentUser.role==='admin'?'管理员':'学生'})`;
+  buildNav();
+  if(currentUser.role==='admin') switchPage('admin-equipment');
+  else switchPage('equipment');
+}
+
+function buildNav(){
+  const nav = document.getElementById('nav');
+  if(currentUser.role==='admin'){
+    nav.innerHTML = `
+      <button onclick="switchPage('admin-equipment')" data-page="admin-equipment">📦 设备管理</button>
+      <button onclick="switchPage('admin-records')" data-page="admin-records">📋 借用记录</button>
+      <button onclick="switchPage('admin-stats')" data-page="admin-stats">📊 数据统计</button>
+      <button onclick="switchPage('notifications')" data-page="notifications">🔔 通知<span id="navBadge" class="badge badge-unread" style="display:none">0</span></button>
+    `;
+  } else {
+    nav.innerHTML = `
+      <button onclick="switchPage('equipment')" data-page="equipment">🔍 浏览设备</button>
+      <button onclick="switchPage('myrecords')" data-page="myrecords">📋 我的借用</button>
+      <button onclick="switchPage('notifications')" data-page="notifications">🔔 通知<span id="navBadge" class="badge badge-unread" style="display:none">0</span></button>
+    `;
+  }
+  updateUnreadBadge();
+}
+
+function switchPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  const page = document.getElementById('page-'+name);
+  if(page) page.classList.add('active');
+  const btn = document.querySelector(`[data-page="${name}"]`);
+  if(btn) btn.classList.add('active');
+  // Load data
+  const loaders = {
+    'equipment': loadEquipment, 'myrecords': loadMyRecords,
+    'notifications': loadNotifications, 'admin-equipment': loadAdminEquipment,
+    'admin-records': loadAdminRecords, 'admin-stats': loadAdminStats
+  };
+  if(loaders[name]) loaders[name]();
+}
+
+// ====== Student: Equipment Browsing ======
+function getEquipIcon(name){
+  const n = (name||'').toLowerCase();
+  if(n.includes('示波器')||n.includes('osc')) return {icon:'📟',cls:'osc'};
+  if(n.includes('万用表')||n.includes('multi')) return {icon:'📏',cls:'meter'};
+  if(n.includes('信号')||n.includes('函数')||n.includes('signal')||n.includes('func')||n.includes('afg')||n.includes('dg')) return {icon:'〰️',cls:'gen'};
+  if(n.includes('电源')||n.includes('power')||n.includes('spd')) return {icon:'🔌',cls:'power'};
+  if(n.includes('频谱')||n.includes('spectrum')||n.includes('网络')||n.includes('network')||n.includes('e5061')) return {icon:'📡',cls:'analyzer'};
+  if(n.includes('逻辑')||n.includes('logic')||n.includes('la')) return {icon:'🧮',cls:'analyzer'};
+  if(n.includes('负载')||n.includes('load')||n.includes('it8')) return {icon:'⚡',cls:'load'};
+  if(n.includes('lcr')||n.includes('电桥')||n.includes('th28')) return {icon:'🔬',cls:'meter'};
+  if(n.includes('热成像')||n.includes('thermal')||n.includes('tis')) return {icon:'🌡️',cls:'thermal'};
+  return {icon:'📦',cls:'default'};
+}
+
+async function loadEquipment(){
+  const q = document.getElementById('eqSearch')?.value||'';
+  const status = document.getElementById('eqStatusFilter')?.value||'';
+  try{
+    const items = await api(`/equipment?q=${encodeURIComponent(q)}&status=${status}`);
+    const grid = document.getElementById('equipmentGrid');
+    const empty = document.getElementById('equipmentEmpty');
+    if(!items.length){ grid.innerHTML=''; empty.style.display='block'; return }
+    empty.style.display='none';
+    grid.innerHTML = items.map(e=>{
+      const {icon,cls} = getEquipIcon(e.name);
+      const pct = e.total_qty>0 ? Math.round(e.available_qty/e.total_qty*100) : 0;
+      const barColor = pct>30 ? 'green' : 'red';
+      const isAvail = e.status==='available' && e.available_qty>0;
+      return `<div class="equip-card ${!isAvail?'unavailable':''}">
+        <div class="card-header">
+          <div class="card-icon ${cls}">${icon}</div>
+          <div class="card-info">
+            <h4 title="${esc(e.name)}">${esc(e.name)}</h4>
+            <div class="model">${esc(e.model||'—')}</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-meta">
+            <span>📍 ${esc(e.location||'—')}</span>
+            <span>👤 ${esc(e.admin_name||'—')}</span>
+          </div>
+          <div class="qty-text">
+            <span class="avail">✅ 可用 ${e.available_qty}</span>
+            <span class="total">共 ${e.total_qty} 台</span>
+          </div>
+          <div class="qty-bar"><div class="qty-bar-fill ${barColor}" style="width:${pct}%"></div></div>
+        </div>
+        <div class="card-footer">
+          <span class="badge badge-${e.status==='available'?'available':'unavailable'}">
+            ${e.status==='available'?'可借用':'不可借'}</span>
+          <div class="actions">
+            ${currentUser.role==='student' && isAvail
+              ? `<button class="btn-primary btn-sm" onclick="openBorrowModal(${e.id},'${esc(e.name)}')">📝 借用</button>`
+              : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){toast(e.message,'error')}
+}
+
+// ====== Student: My Records ======
+async function loadMyRecords(){
+  const status = document.getElementById('myRecStatus')?.value||'';
+  try{
+    const items = await api(`/borrow/records?status=${status}`);
+    const tbody = document.getElementById('myRecordsTable');
+    const empty = document.getElementById('myRecordsEmpty');
+    if(!items.length){ tbody.innerHTML=''; empty.style.display='block'; return }
+    empty.style.display='none';
+    tbody.innerHTML = items.map(r=>`
+      <tr>
+        <td>${esc(r.equipment_name)}</td>
+        <td>${r.borrow_time?.slice(0,16)||''}</td>
+        <td>${r.expected_return?.slice(0,16)||''}</td>
+        <td>${r.actual_return?.slice(0,16)||'—'}</td>
+        <td><span class="badge badge-${r.status}">${statusLabel(r.status)}</span></td>
+        <td>${(r.status==='borrowed'||r.status==='overdue')
+          ?`<button class="btn-success btn-sm" onclick="doReturn(${r.id})">✅ 归还</button>`:'—'}</td>
+      </tr>
+    `).join('');
+  }catch(e){toast(e.message,'error')}
+}
+
+// ====== Notifications ======
+async function loadNotifications(){
+  try{
+    const items = await api('/notifications');
+    const tbody = document.getElementById('notifTable');
+    const empty = document.getElementById('notifEmpty');
+    if(!items.length){ tbody.innerHTML=''; empty.style.display='block'; return }
+    empty.style.display='none';
+    tbody.innerHTML = items.map(n=>`
+      <tr>
+        <td>${esc(n.content)}</td>
+        <td>${n.created_at?.slice(0,16)||''}</td>
+        <td>${n.is_read
+          ?'<span class="badge badge-returned">已读</span>'
+          :`<span class="badge badge-overdue">未读</span>
+             <button class="btn-sm btn-outline" style="margin-left:8px"
+               onclick="markRead(${n.id})">标为已读</button>`}</td>
+      </tr>
+    `).join('');
+  }catch(e){toast(e.message,'error')}
+}
+
+async function markRead(nid){
+  try{await api(`/notifications/${nid}/read`,{method:'POST'});loadNotifications();updateUnreadBadge()}
+  catch(e){toast(e.message,'error')}
+}
+
+async function updateUnreadBadge(){
+  if(!token) return;
+  try{
+    const data = await api('/notifications/unread-count');
+    const badge = document.getElementById('navBadge');
+    if(badge){
+      if(data.count>0){badge.style.display='inline-block';badge.textContent=data.count}
+      else badge.style.display='none';
+    }
+  }catch(e){}
+}
+
+// ====== Admin: Equipment Management ======
+async function loadAdminEquipment(){
+  const q = document.getElementById('adminEqSearch')?.value||'';
+  try{
+    const items = await api(`/equipment?q=${encodeURIComponent(q)}`);
+    const tbody = document.getElementById('adminEquipTable');
+    const empty = document.getElementById('adminEquipEmpty');
+    if(!items.length){ tbody.innerHTML=''; empty.style.display='block'; return }
+    empty.style.display='none';
+    tbody.innerHTML = items.map(e=>`
+      <tr>
+        <td>${e.id}</td><td>${esc(e.name)}</td><td>${esc(e.model||'—')}</td>
+        <td>${e.total_qty}</td><td>${e.available_qty}</td><td>${esc(e.location||'—')}</td>
+        <td><span class="badge badge-${e.status==='available'?'available':'unavailable'}">
+          ${e.status==='available'?'可借用':'不可借'}</span></td>
+        <td>
+          <button class="btn-outline btn-sm" onclick="openEquipModal(${e.id})">✏️</button>
+          <button class="btn-danger btn-sm" onclick="deleteEquip(${e.id},'${esc(e.name)}')">🗑</button>
+        </td>
+      </tr>
+    `).join('');
+  }catch(e){toast(e.message,'error')}
+}
+
+function openEquipModal(id){
+  const isEdit = !!id;
+  const modal = document.getElementById('modalContent');
+  modal.innerHTML = `
+    <h3>${isEdit?'编辑设备':'添加设备'}</h3>
+    <div class="form-group"><label>设备名称 *</label><input id="emName"></div>
+    <div class="form-group"><label>型号</label><input id="emModel"></div>
+    <div class="form-group"><label>总量 *</label><input id="emTotal" type="number" min="1" value="1"></div>
+    <div class="form-group"><label>存放位置</label><input id="emLocation"></div>
+    <div class="form-group"><label>状态</label><select id="emStatus"><option value="available">可借用</option><option value="unavailable">不可借</option></select></div>
+    <div class="form-actions">
+      <button class="btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn-primary" onclick="saveEquip(${id||0})">${isEdit?'保存':'添加'}</button>
+    </div>`;
+  document.getElementById('modal').classList.add('active');
+  if(isEdit){
+    api('/equipment/'+id).then(e=>{
+      document.getElementById('emName').value = e.name;
+      document.getElementById('emModel').value = e.model||'';
+      document.getElementById('emTotal').value = e.total_qty;
+      document.getElementById('emLocation').value = e.location||'';
+      document.getElementById('emStatus').value = e.status;
+    }).catch(e=>toast(e.message,'error'));
+  }
+}
+
+async function saveEquip(id){
+  const body = {
+    name: document.getElementById('emName').value,
+    model: document.getElementById('emModel').value,
+    total_qty: parseInt(document.getElementById('emTotal').value),
+    location: document.getElementById('emLocation').value,
+    status: document.getElementById('emStatus').value
+  };
+  try{
+    if(id) await api('/equipment/'+id,{method:'PUT',body});
+    else await api('/equipment',{method:'POST',body});
+    closeModal(); loadAdminEquipment(); toast(id?'更新成功':'添加成功');
+  }catch(e){toast(e.message,'error')}
+}
+
+async function deleteEquip(id, name){
+  if(!confirm(`确定删除设备「${name}」吗？`)) return;
+  try{await api('/equipment/'+id,{method:'DELETE'});loadAdminEquipment();toast('删除成功')}
+  catch(e){toast(e.message,'error')}
+}
+
+// ====== Admin: All Records ======
+async function loadAdminRecords(){
+  const status = document.getElementById('adminRecStatus')?.value||'';
+  try{
+    const items = await api(`/borrow/records?status=${status}`);
+    const tbody = document.getElementById('adminRecTable');
+    const empty = document.getElementById('adminRecEmpty');
+    if(!items.length){ tbody.innerHTML=''; empty.style.display='block'; return }
+    empty.style.display='none';
+    tbody.innerHTML = items.map(r=>`
+      <tr>
+        <td>${esc(r.username)}</td><td>${esc(r.equipment_name)}</td>
+        <td>${r.borrow_time?.slice(0,16)||''}</td><td>${r.expected_return?.slice(0,16)||''}</td>
+        <td>${r.actual_return?.slice(0,16)||'—'}</td>
+        <td><span class="badge badge-${r.status}">${statusLabel(r.status)}</span></td>
+        <td>${(r.status==='borrowed'||r.status==='overdue')
+          ?`<button class="btn-success btn-sm" onclick="doReturn(${r.id})">✅ 归还</button>`:'—'}</td>
+      </tr>
+    `).join('');
+  }catch(e){toast(e.message,'error')}
+}
+
+// ====== Admin: Stats ======
+async function loadAdminStats(){
+  try{
+    const eq = await api('/statistics/equipment');
+    document.getElementById('statsEquipTable').innerHTML = eq.map(e=>`
+      <tr>
+        <td>${esc(e.name)}</td><td>${esc(e.model||'—')}</td>
+        <td>${e.total_qty}</td><td>${e.available_qty}</td><td>${e.borrow_count}</td>
+        <td>${e.total_qty>0?Math.round(e.borrow_count/e.total_qty*100):0}%</td>
+      </tr>
+    `).join('');
+    const us = await api('/statistics/users');
+    document.getElementById('statsUserTable').innerHTML = us.map(u=>`
+      <tr>
+        <td>${esc(u.username)}</td><td>${u.borrow_count}</td><td>${u.overdue_count}</td>
+        <td>${u.borrow_count>0?Math.round(u.overdue_count/u.borrow_count*100):0}%</td>
+      </tr>
+    `).join('');
+  }catch(e){toast(e.message,'error')}
+}
+
+function exportCSV(){ window.open(API+'/statistics/export','_blank') }
+
+// ====== Borrow / Return ======
+function openBorrowModal(eid, name){
+  const modal = document.getElementById('modalContent');
+  modal.innerHTML = `
+    <h3>📝 借用设备：${esc(name)}</h3>
+    <div class="form-group"><label>预计归还时间 *</label>
+      <input id="bmReturn" type="datetime-local" min="${new Date().toISOString().slice(0,16)}"></div>
+    <div class="form-actions">
+      <button class="btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn-primary" onclick="doBorrow(${eid})">确认借用</button>
+    </div>`;
+  document.getElementById('modal').classList.add('active');
+}
+
+async function doBorrow(eid){
+  const expected = document.getElementById('bmReturn').value;
+  if(!expected) return toast('请选择预计归还时间','error');
+  try{
+    await api('/borrow',{method:'POST',body:{equipment_id:eid,expected_return:expected}});
+    closeModal(); loadEquipment(); loadMyRecords(); toast('借用成功！');
+  }catch(e){toast(e.message,'error')}
+}
+
+async function doReturn(bid){
+  if(!confirm('确认归还该设备吗？')) return;
+  try{
+    await api(`/borrow/${bid}/return`,{method:'POST'});
+    if(currentUser.role==='admin'){loadAdminRecords()}
+    else{loadMyRecords()}
+    loadEquipment(); toast('归还成功！');
+  }catch(e){toast(e.message,'error')}
+}
+
+function closeModal(){ document.getElementById('modal').classList.remove('active') }
+document.getElementById('modal').addEventListener('click',function(e){
+  if(e.target===this) closeModal(); });
+
+// ====== Helpers ======
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') }
+function statusLabel(s){
+  const map={borrowed:'已借出',returned:'已归还',overdue:'逾期',available:'可借用',unavailable:'不可借'};
+  return map[s]||s;
+}
+
+// ====== Keyboard shortcut ======
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape') closeModal();
+  if(e.key==='Enter'){
+    if(document.getElementById('registerForm').style.display!=='none') doRegister();
+    else if(document.getElementById('loginPage').style.display!=='none') doLogin();
+  }
+});
+</script>
+
+</body>
+</html>

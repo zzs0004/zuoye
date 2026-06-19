@@ -1,0 +1,28 @@
+# 数据库文件（含测试数据，不应提交）
+lab.db
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# Hermes Agent 配置
+.hermes/
+
+# 临时测试脚本
+verify_fixes.py
+debug_send.py
+
+# 桌面附件（原始 docx，不应提交）
+*.docm
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
