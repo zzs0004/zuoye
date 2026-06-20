@@ -520,7 +520,7 @@ async function markRead(nid){
 // 批量发送提醒
 async function batchSendReminder(){
   try{
-    const r = await api('/admin/send-reminder',{method:'POST'});
+    const r = await api('/admin/send-reminder',{method:'POST',body:{}});
     toast(r.msg||r.error,'success');
     loadNotifications();
   }catch(e){toast(e.message,'error')}
