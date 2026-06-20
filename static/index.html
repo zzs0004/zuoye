@@ -218,7 +218,10 @@ tr:hover td{background:#f8fafc}
 
     <!-- 通知 -->
     <div id="page-notifications" class="page">
-      <table><thead><tr><th>内容</th><th>时间</th><th>状态</th></tr></thead>
+      <div class="toolbar" id="notifToolbar" style="display:none">
+        <button class="btn-primary" onclick="batchSendReminder()">📨 向全部逾期用户发送提醒</button>
+      </div>
+      <table><thead><tr><th>内容</th><th>时间</th><th>状态</th><th>操作</th></tr></thead>
         <tbody id="notifTable"></tbody></table>
       <div class="empty" id="notifEmpty" style="display:none"><div class="icon">🔔</div><p>暂无通知</p></div>
     </div>
@@ -487,6 +490,10 @@ async function loadNotifications(){
     const items = await api('/notifications');
     const tbody = document.getElementById('notifTable');
     const empty = document.getElementById('notifEmpty');
+    const toolbar = document.getElementById('notifToolbar');
+    // 管理员显示批量发送按钮
+    if(user && user.role==='admin') toolbar.style.display='block';
+    else toolbar.style.display='none';
     if(!items.length){ tbody.innerHTML=''; empty.style.display='block'; return }
     empty.style.display='none';
     tbody.innerHTML = items.map(n=>`
@@ -498,6 +505,8 @@ async function loadNotifications(){
           :`<span class="badge badge-overdue">未读</span>
              <button class="btn-sm btn-outline" style="margin-left:8px"
                onclick="markRead(${n.id})">标为已读</button>`}</td>
+        <td>${user&&user.role==='admin'&&n.borrow_id
+          ?`<button class="btn-sm btn-warning" onclick="sendReminderForRecord(${n.borrow_id})">📨 催还</button>`:'—'}</td>
       </tr>
     `).join('');
   }catch(e){toast(e.message,'error')}
@@ -506,6 +515,24 @@ async function loadNotifications(){
 async function markRead(nid){
   try{await api(`/notifications/${nid}/read`,{method:'POST'});loadNotifications();updateUnreadBadge()}
   catch(e){toast(e.message,'error')}
+}
+
+// 批量发送提醒
+async function batchSendReminder(){
+  try{
+    const r = await api('/admin/send-reminder',{method:'POST'});
+    toast(r.msg||r.error,'success');
+    loadNotifications();
+  }catch(e){toast(e.message,'error')}
+}
+
+// 针对单条记录发送提醒
+async function sendReminderForRecord(borrowId){
+  try{
+    const r = await api('/admin/send-reminder',{method:'POST',body:{borrow_id:borrowId,message:'请尽快归还逾期设备！'}});
+    toast(r.msg||r.error,'success');
+    loadNotifications();
+  }catch(e){toast(e.message,'error')}
 }
 
 async function updateUnreadBadge(){
