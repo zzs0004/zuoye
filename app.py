@@ -342,8 +342,11 @@ def borrow_records():
 @login_required
 def list_notifications():
     db = get_db()
-    rows = db.execute("SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC",
-                      [g.user['id']]).fetchall()
+    if g.user['role'] == 'admin':
+        rows = db.execute("SELECT * FROM notifications ORDER BY id DESC").fetchall()
+    else:
+        rows = db.execute("SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC",
+                          [g.user['id']]).fetchall()
     return jsonify([dict(r) for r in rows])
 
 @app.route('/api/notifications/<int:nid>/read', methods=['POST'])
